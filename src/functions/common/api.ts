@@ -22,12 +22,16 @@ let generation = 0;
 
 /** Returns the cache ID prefix for this key, starting a new generation if the key changed. */
 export async function cachePrefixFor(apiKey: string): Promise<string> {
-  if (currentKey !== apiKey) {
-    if (currentKey !== null) {
-      generation += 1;
-      await apiClient.storage.clear?.();
-    }
-    currentKey = apiKey;
+  // Update the state and take the prefix before any await, so overlapping calls with
+  // different keys never get the same prefix
+  const changed = currentKey !== null && currentKey !== apiKey;
+  if (changed) {
+    generation += 1;
   }
-  return `g${generation}:`;
+  currentKey = apiKey;
+  const prefix = `g${generation}:`;
+  if (changed) {
+    await apiClient.storage.clear?.();
+  }
+  return prefix;
 }
