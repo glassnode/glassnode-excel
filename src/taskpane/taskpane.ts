@@ -29,14 +29,37 @@ Office.onReady(() => {
   loadApiKey();
 });
 
+// Whether a key is saved (null: unknown, storage couldn't be read), and whether a storage
+// operation is running. Only one runs at a time, so a late result can't overwrite a newer one.
+let keySaved: boolean | null = null;
+let busy = false;
+
 function setStatus(message: string, color: string) {
   const statusDiv = document.getElementById('api-status');
   statusDiv.textContent = message;
   statusDiv.style.color = color;
 }
 
-function setRemoveEnabled(enabled: boolean) {
-  (document.getElementById('remove-api-key') as HTMLButtonElement).disabled = !enabled;
+function renderButtons() {
+  (document.getElementById('save-api-key') as HTMLButtonElement).disabled = busy;
+  // Unknown state still allows Remove, so a key that can't be read can still be deleted
+  (document.getElementById('remove-api-key') as HTMLButtonElement).disabled = busy || keySaved === false;
+}
+
+async function exclusive(operation: () => Promise<void>) {
+  if (busy) return;
+  busy = true;
+  renderButtons();
+  try {
+    await operation();
+  } finally {
+    busy = false;
+    renderButtons();
+  }
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Unknown error';
 }
 
 /** Describes a saved key without revealing it: only its last four characters. */
@@ -45,8 +68,8 @@ export function describeSavedKey(apiKey: string): string {
   return `API key saved${ending}. Enter a new key to replace it.`;
 }
 
-export async function saveApiKey() {
-  try {
+export function saveApiKey() {
+  return exclusive(async () => {
     const apiKeyInput = document.getElementById('api-key-input') as HTMLInputElement;
     const apiKey = apiKeyInput.value.trim();
 
@@ -55,43 +78,56 @@ export async function saveApiKey() {
       return;
     }
 
-    // Save using OfficeRuntime.storage (works across all contexts)
-    await OfficeRuntime.storage.setItem(API_KEY_STORAGE_KEY, apiKey);
+    try {
+      // Save using OfficeRuntime.storage (works across all contexts)
+      await OfficeRuntime.storage.setItem(API_KEY_STORAGE_KEY, apiKey);
+    } catch (error) {
+      console.error('Error saving API key:', errorMessage(error));
+      setStatus(`Error saving API key: ${errorMessage(error)}`, COLOR_ERROR);
+      return;
+    }
 
-    // Don't keep the key in the page once it's saved
-    apiKeyInput.value = '';
-    setRemoveEnabled(true);
+    // Don't keep the key in the page once it's saved (unless the field was edited meanwhile)
+    if (apiKeyInput.value.trim() === apiKey) {
+      apiKeyInput.value = '';
+    }
+    keySaved = true;
     setStatus(describeSavedKey(apiKey), COLOR_OK);
-  } catch (error) {
-    console.error('Error saving API key:', error);
-    setStatus(`Error saving API key: ${error instanceof Error ? error.message : 'Unknown error'}`, COLOR_ERROR);
-  }
+  });
 }
 
-export async function removeApiKey() {
-  try {
-    await OfficeRuntime.storage.removeItem(API_KEY_STORAGE_KEY);
+export function removeApiKey() {
+  return exclusive(async () => {
+    try {
+      await OfficeRuntime.storage.removeItem(API_KEY_STORAGE_KEY);
+    } catch (error) {
+      console.error('Error removing API key:', errorMessage(error));
+      setStatus(`Error removing API key: ${errorMessage(error)}`, COLOR_ERROR);
+      return;
+    }
 
-    (document.getElementById('api-key-input') as HTMLInputElement).value = '';
-    setRemoveEnabled(false);
+    keySaved = false;
     setStatus('API key removed', COLOR_OK);
-  } catch (error) {
-    console.error('Error removing API key:', error);
-    setStatus(`Error removing API key: ${error instanceof Error ? error.message : 'Unknown error'}`, COLOR_ERROR);
-  }
+  });
 }
 
-export async function loadApiKey() {
-  try {
-    // Use OfficeRuntime.storage (works across all contexts)
-    const apiKey = await OfficeRuntime.storage.getItem(API_KEY_STORAGE_KEY);
+export function loadApiKey() {
+  return exclusive(async () => {
+    let apiKey: string | null;
+    try {
+      // Use OfficeRuntime.storage (works across all contexts)
+      apiKey = await OfficeRuntime.storage.getItem(API_KEY_STORAGE_KEY);
+    } catch (error) {
+      console.error('Error loading API key:', errorMessage(error));
+      keySaved = null;
+      setStatus('Could not read the saved API key. Close and reopen this pane to try again.', COLOR_ERROR);
+      return;
+    }
 
     // The saved key is never put back into the input field
-    setRemoveEnabled(Boolean(apiKey));
+    keySaved = Boolean(apiKey);
     if (apiKey) {
       setStatus(describeSavedKey(apiKey), COLOR_OK);
     }
-  } catch (error) {
-    console.error('Error loading API key:', error);
-  }
+  });
 }

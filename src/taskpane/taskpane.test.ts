@@ -76,4 +76,29 @@ describe('task pane API key settings', () => {
     expect(taskpane.describeSavedKey(SAVED_KEY)).toBe('API key saved ending in wxyz. Enter a new key to replace it.');
     expect(taskpane.describeSavedKey('short')).toBe('API key saved. Enter a new key to replace it.');
   });
+
+  it('ignores a second click while a save is still running', async () => {
+    let finish: () => void = () => undefined;
+    storage.setItem.mockReturnValue(new Promise<void>(resolve => (finish = resolve)));
+    input().value = SAVED_KEY;
+
+    const first = taskpane.saveApiKey();
+    expect((document.getElementById('save-api-key') as HTMLButtonElement).disabled).toBe(true);
+    expect(removeButton().disabled).toBe(true);
+    await taskpane.removeApiKey();
+    finish();
+    await first;
+
+    expect(storage.removeItem).not.toHaveBeenCalled();
+    expect(removeButton().disabled).toBe(false);
+  });
+
+  it('shows a storage read failure and still allows Remove', async () => {
+    storage.getItem.mockRejectedValue(new Error('storage unavailable'));
+
+    await taskpane.loadApiKey();
+
+    expect(status()).toContain('Could not read the saved API key');
+    expect(removeButton().disabled).toBe(false);
+  });
 });
