@@ -2,7 +2,7 @@
 
 import axios from 'axios';
 import {apiClient} from './api';
-import {getApiKey, getApiUrl, buildCacheId, buildHeaders} from './utils';
+import {apiKeyHeaders, getApiKey, getApiUrl, buildCacheId, buildHeaders} from './utils';
 import {dateToUnixSeconds, unixSecondsToYyyyMmDd} from './dateUtils';
 
 export async function METRIC(
@@ -30,7 +30,6 @@ export async function METRIC(
 
     // Build URL parameters
     const params = {
-      api_key: apiKey,
       a: asset,
       i: '24h',
       s: startTimestamp.toString(),
@@ -57,10 +56,7 @@ export async function METRIC(
     // Use proxy path for development, direct API for production
     const apiUrl = `${getApiUrl()}/v1/metrics${metric}`;
 
-    const {api_key: _, ...cacheKeyParams} = params;
-
-    // Does it even get called? check params, maybe breakpoint.
-    const cacheId = buildCacheId(cacheKeyParams, metric);
+    const cacheId = buildCacheId(params, metric);
     type ObjectResponseItem = {t: number; o: Record<string, unknown>};
     type ValueResponseItem = {t: number; v: unknown};
     type ResponseItem = ObjectResponseItem | ValueResponseItem;
@@ -69,6 +65,7 @@ export async function METRIC(
         ...params,
         source: 'excel-add-in',
       },
+      headers: apiKeyHeaders(apiKey),
       cache: {
         ttl: 3 * 60 * 1000, // 3 min
       },

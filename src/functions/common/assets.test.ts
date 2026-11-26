@@ -36,9 +36,18 @@ describe('ASSETS function', () => {
     expect(result).toEqual([['BTC'], ['ETH']]);
     expect(mock.history.get).toHaveLength(1);
     expect(mock.history.get[0].params).toEqual({
-      api_key: 'test-api-key',
       source: 'excel-add-in',
     });
+  });
+
+  it('should send the API key in the X-Api-Key header, not in the URL', async () => {
+    mock.onGet('/api/glassnode/v1/metadata/assets').reply(200, {data: [{id: 'BTC'}]});
+
+    await ASSETS();
+
+    const request = mock.history.get[0];
+    expect(request.headers['X-Api-Key']).toBe('test-api-key');
+    expect(apiClient.getUri(request)).not.toContain('test-api-key');
   });
 
   it('should return error when API key is not configured', async () => {

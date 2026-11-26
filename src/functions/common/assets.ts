@@ -1,7 +1,7 @@
 /* global console */
 
 import axios from 'axios';
-import {getApiKey, getApiUrl} from './utils';
+import {apiKeyHeaders, getApiKey, getApiUrl} from './utils';
 import {apiClient} from './api';
 // Create cached axios instance with localStorage
 
@@ -16,9 +16,9 @@ export async function ASSETS(limit: number = null): Promise<string[][]> {
     const cacheId = `assets_cache`;
     const response = await apiClient.get(`${getApiUrl()}/v1/metadata/assets`, {
       params: {
-        api_key: apiKey,
         source: 'excel-add-in',
       },
+      headers: apiKeyHeaders(apiKey),
       cache: {
         ttl: 60 * 60 * 1000, // 1 hour
       },

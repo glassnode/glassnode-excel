@@ -14,6 +14,14 @@ export async function getApiKey(): Promise<string | null> {
   }
 }
 
+/**
+ * Request headers that authenticate with the Glassnode API.
+ * The key goes in a header rather than the query string, so it stays out of URLs.
+ */
+export function apiKeyHeaders(apiKey: string): Record<string, string> {
+  return {'X-Api-Key': apiKey};
+}
+
 export function isDevEnv() {
   return window?.location?.hostname === 'localhost';
 }
