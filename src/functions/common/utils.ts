@@ -1,17 +1,41 @@
-/* global console, OfficeRuntime */
+/* global OfficeRuntime */
+
+export const API_KEY_MISSING_ERROR = 'Error: API key not configured. Please set your API key in the task pane.';
+export const API_KEY_STORAGE_ERROR = 'Error: could not read the API key from storage. Please try again.';
 
 /**
- * Helper function to get the API key from OfficeRuntime.storage
- * @returns The stored API key or null if not found
+ * Get the API key from OfficeRuntime.storage.
+ * @returns The stored API key, or null if none is saved.
+ * @throws If storage can't be read, so callers can tell a failure from "no key saved".
  */
 export async function getApiKey(): Promise<string | null> {
-  try {
-    // Use OfficeRuntime.storage (works across all contexts)
-    return await OfficeRuntime.storage.getItem('glassnodeApiKey');
-  } catch (error) {
-    console.error('Error getting API key:', error);
-    return null;
+  return await OfficeRuntime.storage.getItem('glassnodeApiKey');
+}
+
+/**
+ * A short, non-reversible tag for an API key, used to keep cached responses per key
+ * so switching keys never serves data fetched with the previous one.
+ */
+export function apiKeyCacheTag(apiKey: string): string {
+  // FNV-1a, 32 bit
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < apiKey.length; i++) {
+    hash ^= apiKey.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
   }
+  return (hash >>> 0).toString(16);
+}
+
+/**
+ * A loggable summary of an error. Never log a whole axios error: its request config
+ * carries the X-Api-Key header.
+ */
+export function describeError(error: unknown): Record<string, unknown> {
+  if (error && typeof error === 'object' && (error as {isAxiosError?: boolean}).isAxiosError) {
+    const axiosError = error as {code?: string; message?: string; response?: {status?: number}};
+    return {code: axiosError.code, status: axiosError.response?.status, message: axiosError.message};
+  }
+  return {message: error instanceof Error ? error.message : String(error)};
 }
 
 /**

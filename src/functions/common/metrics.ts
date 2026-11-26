@@ -2,7 +2,20 @@
 
 import axios from 'axios';
 import {apiClient} from './api';
-import {apiKeyHeaders, getApiKey, getApiUrl, buildCacheId, buildHeaders} from './utils';
+import {
+  API_KEY_MISSING_ERROR,
+  API_KEY_STORAGE_ERROR,
+  apiKeyCacheTag,
+  apiKeyHeaders,
+  buildCacheId,
+  buildHeaders,
+  describeError,
+  getApiKey,
+  getApiUrl,
+} from './utils';
+
+// Parameters a formula may not set: the key only ever travels in the X-Api-Key header
+const RESERVED_PARAMS = new Set(['api_key']);
 import {dateToUnixSeconds, unixSecondsToYyyyMmDd} from './dateUtils';
 
 export async function METRIC(
@@ -18,10 +31,20 @@ export async function METRIC(
 ): Promise<string[][]> {
   try {
     // Get API key from settings
-    const apiKey = await getApiKey();
+    let apiKey: string | null;
+    try {
+      apiKey = await getApiKey();
+    } catch (error) {
+      console.error('Error reading API key from storage:', describeError(error));
+      return [[API_KEY_STORAGE_ERROR]];
+    }
     if (!apiKey) {
       console.log('API key not found');
-      return [['Error: API key not configured. Please set your API key in the task pane.']];
+      return [[API_KEY_MISSING_ERROR]];
+    }
+
+    if (metric.includes('?') || metric.includes('#')) {
+      return [['Error: the metric path cannot contain "?" or "#"; pass parameters as key=value arguments']];
     }
 
     // Convert provided Date objects to unix timestamps (seconds)
@@ -45,6 +68,9 @@ export async function METRIC(
     for (const param of optionalParams) {
       if (param && typeof param === 'string') {
         const [key, value] = param.split('=');
+        if (key && RESERVED_PARAMS.has(key.trim().toLowerCase())) {
+          return [['Error: api_key cannot be passed as a parameter; set your API key in the task pane']];
+        }
         if (key && value) {
           params[key.trim()] = value.trim();
         } else {
@@ -56,7 +82,7 @@ export async function METRIC(
     // Use proxy path for development, direct API for production
     const apiUrl = `${getApiUrl()}/v1/metrics${metric}`;
 
-    const cacheId = buildCacheId(params, metric);
+    const cacheId = buildCacheId({...params, key: apiKeyCacheTag(apiKey)}, metric);
     type ObjectResponseItem = {t: number; o: Record<string, unknown>};
     type ValueResponseItem = {t: number; v: unknown};
     type ResponseItem = ObjectResponseItem | ValueResponseItem;
@@ -129,12 +155,7 @@ export async function METRIC(
       return [headers, ...dataRows] as unknown as string[][];
     }
   } catch (error) {
-    console.error('Error in METRIC function:', error);
-    console.log('Error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      errorType: typeof error,
-    });
+    console.error('Error in METRIC function:', describeError(error));
 
     // Handle axios-specific errors
     if (axios.isAxiosError(error)) {
