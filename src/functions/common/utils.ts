@@ -13,20 +13,6 @@ export async function getApiKey(): Promise<string | null> {
 }
 
 /**
- * A short, non-reversible tag for an API key, used to keep cached responses per key
- * so switching keys never serves data fetched with the previous one.
- */
-export function apiKeyCacheTag(apiKey: string): string {
-  // FNV-1a, 32 bit
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < apiKey.length; i++) {
-    hash ^= apiKey.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(16);
-}
-
-/**
  * A loggable summary of an error. Never log a whole axios error: its request config
  * carries the X-Api-Key header.
  */

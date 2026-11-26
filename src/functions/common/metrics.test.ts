@@ -441,7 +441,7 @@ describe('METRIC function', () => {
       await METRIC('BTC', '/addresses/active_count', '44562');
       expect(buildCacheIdSpy).toHaveBeenCalled();
       expect(buildCacheIdSpy).toHaveBeenCalledWith(
-        {a: 'BTC', i: '24h', s: '1640995200', key: utilsModule.apiKeyCacheTag('test-api-key')},
+        {a: 'BTC', i: '24h', s: '1640995200'},
         '/addresses/active_count',
       );
     });
@@ -605,6 +605,34 @@ describe('METRIC function', () => {
 
       expect(mock.history.get).toHaveLength(2);
       expect(mock.history.get[1].headers['X-Api-Key']).toBe('second-key');
+    });
+
+    it('caches a formula parameter named key like any other parameter', async () => {
+      mock.onGet(url).reply(200, [{t: 1640995200, v: 1}]);
+
+      await METRIC('BTC', '/addresses/active_count', '44562', null, 'key=one');
+      await METRIC('BTC', '/addresses/active_count', '44562', null, 'key=two');
+
+      expect(mock.history.get).toHaveLength(2);
+      expect(mock.history.get[1].params.key).toBe('two');
+    });
+
+    it('does not serve a response that was still in flight when the key changed', async () => {
+      let release: () => void = () => undefined;
+      mock.onGet(url).replyOnce(() => new Promise(resolve => (release = () => resolve([200, [{t: 1, v: 'old'}]]))));
+      mock.onGet(url).reply(200, [{t: 1, v: 'new'}]);
+
+      getItem().mockReturnValue('first-key');
+      const inFlight = METRIC('BTC', '/addresses/active_count', '44562');
+      await new Promise(resolve => setTimeout(resolve, 0));
+      getItem().mockReturnValue('second-key');
+      const fresh = await METRIC('BTC', '/addresses/active_count', '44562');
+      release();
+      await inFlight;
+      const again = await METRIC('BTC', '/addresses/active_count', '44562');
+
+      expect(fresh).toEqual([['new']]);
+      expect(again).toEqual([['new']]);
     });
 
     it('reports a storage failure instead of "not configured"', async () => {

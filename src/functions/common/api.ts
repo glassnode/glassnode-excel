@@ -13,3 +13,21 @@ export const apiClient = setupCache(axios, {
   // otherwise this at least fails in excel web, most likely also in other envs
   cacheTakeover: false,
 });
+
+// Cached responses belong to the API key they were fetched with. Each key change starts a new
+// cache generation: IDs carry the generation, so a request still in flight under the old key
+// writes where nothing reads, and the old entries are cleared.
+let currentKey: string | null = null;
+let generation = 0;
+
+/** Returns the cache ID prefix for this key, starting a new generation if the key changed. */
+export async function cachePrefixFor(apiKey: string): Promise<string> {
+  if (currentKey !== apiKey) {
+    if (currentKey !== null) {
+      generation += 1;
+      await apiClient.storage.clear?.();
+    }
+    currentKey = apiKey;
+  }
+  return `g${generation}:`;
+}

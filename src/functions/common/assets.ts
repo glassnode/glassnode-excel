@@ -1,8 +1,8 @@
 /* global console */
 
 import axios from 'axios';
-import {API_KEY_MISSING_ERROR, API_KEY_STORAGE_ERROR, apiKeyCacheTag, apiKeyHeaders, describeError, getApiKey, getApiUrl} from './utils';
-import {apiClient} from './api';
+import {API_KEY_MISSING_ERROR, API_KEY_STORAGE_ERROR, apiKeyHeaders, describeError, getApiKey, getApiUrl} from './utils';
+import {apiClient, cachePrefixFor} from './api';
 // Create cached axios instance with localStorage
 
 export async function ASSETS(limit: number = null): Promise<string[][]> {
@@ -19,7 +19,7 @@ export async function ASSETS(limit: number = null): Promise<string[][]> {
       return [[API_KEY_MISSING_ERROR]];
     }
 
-    const cacheId = `assets_cache_${apiKeyCacheTag(apiKey)}`;
+    const cacheId = (await cachePrefixFor(apiKey)) + 'assets_cache';
     const response = await apiClient.get(`${getApiUrl()}/v1/metadata/assets`, {
       params: {
         source: 'excel-add-in',

@@ -1,18 +1,8 @@
 /* global console */
 
 import axios from 'axios';
-import {apiClient} from './api';
-import {
-  API_KEY_MISSING_ERROR,
-  API_KEY_STORAGE_ERROR,
-  apiKeyCacheTag,
-  apiKeyHeaders,
-  buildCacheId,
-  buildHeaders,
-  describeError,
-  getApiKey,
-  getApiUrl,
-} from './utils';
+import {apiClient, cachePrefixFor} from './api';
+import {API_KEY_MISSING_ERROR, API_KEY_STORAGE_ERROR, apiKeyHeaders, buildCacheId, buildHeaders, describeError, getApiKey, getApiUrl} from './utils';
 
 // Parameters a formula may not set: the key only ever travels in the X-Api-Key header
 const RESERVED_PARAMS = new Set(['api_key']);
@@ -82,7 +72,7 @@ export async function METRIC(
     // Use proxy path for development, direct API for production
     const apiUrl = `${getApiUrl()}/v1/metrics${metric}`;
 
-    const cacheId = buildCacheId({...params, key: apiKeyCacheTag(apiKey)}, metric);
+    const cacheId = (await cachePrefixFor(apiKey)) + buildCacheId(params, metric);
     type ObjectResponseItem = {t: number; o: Record<string, unknown>};
     type ValueResponseItem = {t: number; v: unknown};
     type ResponseItem = ObjectResponseItem | ValueResponseItem;
