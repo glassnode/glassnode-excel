@@ -595,6 +595,21 @@ describe('METRIC function', () => {
       expect(mock.history.get).toHaveLength(0);
     });
 
+    it.each([
+      '/../v1/user/info',
+      '/market/../../v2/user',
+      '/./market/price_usd_close',
+      '/market/%2e%2e/x',
+      '/market\\..\\x',
+      '/market//price_usd_close',
+      '/market/',
+    ])('rejects the metric path %s without sending a request', async path => {
+      const result = await METRIC('BTC', path, '44562');
+
+      expect(result[0][0]).toContain('Invalid path');
+      expect(mock.history.get).toHaveLength(0);
+    });
+
     it('does not serve a response cached under a different API key', async () => {
       mock.onGet(url).reply(200, [{t: 1640995200, v: 1}]);
 

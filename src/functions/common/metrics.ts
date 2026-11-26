@@ -6,6 +6,7 @@ import {API_KEY_MISSING_ERROR, API_KEY_STORAGE_ERROR, apiKeyHeaders, buildCacheI
 
 // Parameters a formula may not set: the key only ever travels in the X-Api-Key header
 const RESERVED_PARAMS = new Set(['api_key']);
+const METRIC_SEGMENT = /^[A-Za-z0-9_-]+$/;
 import {dateToUnixSeconds, unixSecondsToYyyyMmDd} from './dateUtils';
 
 export async function METRIC(
@@ -35,6 +36,13 @@ export async function METRIC(
 
     if (metric.includes('?') || metric.includes('#')) {
       return [['Error: the metric path cannot contain "?" or "#"; pass parameters as key=value arguments']];
+    }
+
+    // Only plain path segments (letters, digits, "_" and "-"): this blocks "..", ".", "%2e" and "\"
+    // so a formula cannot point the request, and the API key with it, at another endpoint.
+    const segments = metric.replace(/^\//, '').split('/');
+    if (!segments.every(segment => METRIC_SEGMENT.test(segment))) {
+      return [['Error: Invalid path, make sure to use API endpoint notation like /addresses/active_count']];
     }
 
     // Convert provided Date objects to unix timestamps (seconds)
@@ -70,7 +78,7 @@ export async function METRIC(
     }
 
     // Use proxy path for development, direct API for production
-    const apiUrl = `${getApiUrl()}/v1/metrics${metric}`;
+    const apiUrl = `${getApiUrl()}/v1/metrics/${segments.map(encodeURIComponent).join('/')}`;
 
     const cacheId = (await cachePrefixFor(apiKey)) + buildCacheId(params, metric);
     type ObjectResponseItem = {t: number; o: Record<string, unknown>};
