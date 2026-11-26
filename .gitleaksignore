@@ -1,2 +1,3 @@
 # Test fixture, not a real key: SAVED_KEY in the task pane tests
 c8464e28492cf3de4a4cca642f7cba225135cafe:src/taskpane/taskpane.test.ts:generic-api-key:14
+src/taskpane/taskpane.test.ts:generic-api-key:14
