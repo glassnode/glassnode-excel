@@ -6,6 +6,13 @@ This guide covers local development setup, testing, and development workflows fo
 
 To run the add-in locally for development:
 
+0. **Install dependencies:**
+   ```bash
+   npm ci --ignore-scripts
+   ```
+
+   `--ignore-scripts` stops packages from running their own install scripts on your machine. The build and the tests work without them. (`keytar`, an optional native module of the Microsoft 365 publishing tools, then can't load; this project doesn't use those tools.) To add or upgrade a package, also pass the flag: `npm install <package> --ignore-scripts`.
+
 1. **Build and Start Dev Server:**
    ```bash
    npm run build:dev && npm run dev-server
