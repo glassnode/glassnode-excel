@@ -1,9 +1,10 @@
 # `glassnode-excel`: agent instructions
 
-Read [DEVELOPMENT.md](DEVELOPMENT.md) first: setup, commands and the release steps live
-there. Before opening a PR, run `npm ci --ignore-scripts`, `npm run build`, `npx jest` and
-`npm run validate`, and fill in the PR template, including its security-review line. Never
-approve or merge your own PR: a code owner approves and merges it.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) first: commands, commit format, the change and
+release steps live there; running the add-in in Excel is in [DEVELOPMENT.md](DEVELOPMENT.md).
+Before opening a PR, run the checks in its "Build and test" section and fill in the PR
+template, including its security-review line. Never approve or merge your own PR: a code
+owner approves and merges it.
 
 ## Releases
 
@@ -11,7 +12,7 @@ approve or merge your own PR: a code owner approves and merges it.
   [CHANGELOG.md](CHANGELOG.md), with security fixes under **Security**. A PR that changes
   what users get adds its line to the changelog's next version.
 - No tag, no deploy: the CDN serves only a build of a `v<version>` tag on `main`, built
-  from a clean checkout of that tag (DEVELOPMENT.md → Releasing).
+  from a clean checkout of that tag (CONTRIBUTING.md → Releasing).
 
 ## Don't
 

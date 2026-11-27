@@ -162,3 +162,10 @@ dist
 .ionide
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,node
+
+# Local overrides and credentials: never commit
+*.local
+credentials*
+*.pem
+*.key
+*.p12
