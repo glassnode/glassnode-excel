@@ -113,6 +113,15 @@ The following development tasks are available via VS Code or npm:
 
 To create and publish a new release of the add-in:
 
+0. **Version, changelog and tag** (no tag, no deploy):
+   - In a PR, bump `ADDIN_VERSION` in `src/version.ts` ([semver](https://semver.org/): patch for fixes, minor for new behaviour) and add its entry to [CHANGELOG.md](CHANGELOG.md). List security fixes under **Security**. The task pane shows this version. Leave `<Version>` in `manifest.xml` alone unless the manifest itself changes.
+   - After the PR is merged, tag the merge commit on `main` with the same version and push the tag:
+     ```bash
+     git switch main && git pull
+     git tag -a v0.2.0 -m "v0.2.0" && git push origin v0.2.0
+     ```
+   - Build and deploy only from a clean checkout of that tag (`git switch --detach v0.2.0 && npm ci --ignore-scripts`), never from a working copy. The tag is the record of what the CDN serves.
+
 1. **Build the project:**
    ```bash
    npm run build
