@@ -6,6 +6,9 @@ import {apiClient, cachePrefixFor} from './api';
 // Create cached axios instance with localStorage
 
 export async function ASSETS(limit: number = null): Promise<string[][]> {
+  if (limit !== null && limit !== undefined && !(Number.isInteger(limit) && limit >= 0)) {
+    return [['Error: limit must be a whole number of 0 or more']];
+  }
   try {
     // Get API key from settings
     let apiKey: string | null;

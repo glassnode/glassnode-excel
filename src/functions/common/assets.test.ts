@@ -185,4 +185,17 @@ describe('ASSETS function', () => {
     expect(JSON.stringify(errorSpy.mock.calls)).not.toContain('test-api-key');
     errorSpy.mockRestore();
   });
+
+  it.each([-1, 1.5, NaN, Infinity])('rejects the limit %p without sending a request', async limit => {
+    const result = await ASSETS(limit);
+
+    expect(result[0][0]).toContain('limit must be a whole number');
+    expect(mock.history.get).toHaveLength(0);
+  });
+
+  it('accepts a limit of 0', async () => {
+    mock.onGet('/api/glassnode/v1/metadata/assets').reply(200, {data: [{id: 'BTC'}]});
+
+    expect(await ASSETS(0)).toEqual([]);
+  });
 });

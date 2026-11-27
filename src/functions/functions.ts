@@ -43,17 +43,10 @@ export async function METRIC(
   parameter4: string | null = null,
   pick: string | null = null,
 ): Promise<string[][]> {
-  console.log(`[GlassnodeExcel v${ADDIN_VERSION}] METRIC`, {
-    asset,
-    metric,
-    startDate,
-    endDate,
-    parameter1,
-    parameter2,
-    parameter3,
-    parameter4,
-    pick,
-  });
+  // Log the call without parameter values: a value can hold something the user didn't mean
+  // to share (a mistyped api_key=..., for example). Parameter keys are enough to debug.
+  const paramKeys = [parameter1, parameter2, parameter3, parameter4].filter(p => typeof p === 'string' && p !== '').map(p => p.split('=')[0].trim());
+  console.log(`[GlassnodeExcel v${ADDIN_VERSION}] METRIC`, {asset, metric, startDate, endDate, paramKeys, pick});
   // Validate required parameters early (UX layer responsibility)
   if (!asset || !metric || !startDate) {
     return [['Error: asset, metric, and startDate are required parameters']];
