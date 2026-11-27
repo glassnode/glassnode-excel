@@ -4,7 +4,7 @@ All notable changes to the Glassnode Excel add-in. The version is the one the ta
 shows (`src/version.ts`). Each release is tagged `v<version>` on `main`, and the CDN
 serves the build of that tag. Security fixes are listed under **Security**.
 
-## 0.2.0 (unreleased: set the date in the release PR just before it merges)
+## 0.2.0 (2026-11-27)
 
 ### Security
 
@@ -18,8 +18,8 @@ serves the build of that tag. Security fixes are listed under **Security**.
   letters, digits, `_` and `-`. A shared workbook can't send the key to other API
   endpoints.
 - axios is upgraded from 1.11.0 to 1.21.1 and axios-cache-interceptor from 1.8.0 to
-  1.11.1, fixing known vulnerabilities (high severity in axios and its form-data
-  dependency).
+  1.13.0, fixing known vulnerabilities (high severity in axios and its form-data
+  dependency). core-js is updated to 3.51.0.
 
 - Formula calls are logged without parameter values, so a mistyped `api_key=...` never
   reaches the console.
