@@ -1,13 +1,13 @@
 // Use the public wrapper which handles Excel serial / string date parsing
 import {METRIC} from '../functions';
-import {apiClient} from './api';
-import MockAdapter from 'axios-mock-adapter';
+import {clientSettings, resetApi} from './api';
+import {mockFetch} from './testFetch';
 
 // Import the entire module for spying
 import * as utilsModule from './utils';
 
 describe('METRIC function', () => {
-  let mock: MockAdapter;
+  let mock: ReturnType<typeof mockFetch>;
 
   beforeEach(() => {
     // Clear localStorage before each test
@@ -15,12 +15,12 @@ describe('METRIC function', () => {
       localStorage.clear();
     }
 
-    // Create MockAdapter for the cached axios instance
-    mock = new MockAdapter(apiClient);
+    // Retried failures (429, 5xx, network errors) should not slow the tests
+    clientSettings.retryDelay = 1;
+    mock = mockFetch();
     (global as any).OfficeRuntime.storage.getItem.mockReturnValue('test-api-key');
 
-    // Clear the cache storage before each test
-    (apiClient as any).storage?.clear?.();
+    resetApi();
   });
 
   afterEach(() => {
@@ -53,7 +53,7 @@ describe('METRIC function', () => {
     const request = mock.history.get[0];
     expect(request.headers['X-Api-Key']).toBe('test-api-key');
     expect(request.params).not.toHaveProperty('api_key');
-    expect(apiClient.getUri(request)).not.toContain('test-api-key');
+    expect(request.fullUrl).not.toContain('test-api-key');
   });
 
   it('should return table format for date range', async () => {
@@ -418,7 +418,8 @@ describe('METRIC function', () => {
       const result = await METRIC('BTC', '/addresses/active_count', '44562');
 
       expect(result).toEqual([['Error: 429 rate limit exceeded - too many requests to the Glassnode API']]);
-      expect(mock.history.get).toHaveLength(1);
+      // The client retries a 429 twice
+      expect(mock.history.get).toHaveLength(3);
     });
   });
 

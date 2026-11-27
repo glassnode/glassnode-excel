@@ -1,10 +1,13 @@
 import {ASSETS} from './assets';
-import {apiClient} from './api';
-import MockAdapter from 'axios-mock-adapter';
+import {clientSettings, resetApi} from './api';
+import {mockFetch} from './testFetch';
 import {API_KEY_STORAGE_ERROR} from './utils';
 
+// The client validates the asset list against the full API shape
+const asset = (id: string) => ({id, symbol: id, name: id, asset_type: 'BLOCKCHAIN', external_ids: {}, blockchains: []});
+
 describe('ASSETS function', () => {
-  let mock: MockAdapter;
+  let mock: ReturnType<typeof mockFetch>;
 
   beforeEach(() => {
     // Clear localStorage before each test
@@ -12,12 +15,12 @@ describe('ASSETS function', () => {
       localStorage.clear();
     }
 
-    // Create MockAdapter for the cached axios instance, not the base axios
-    mock = new MockAdapter(apiClient);
+    // Retried failures (429, 5xx, network errors) should not slow the tests
+    clientSettings.retryDelay = 1;
+    mock = mockFetch();
     (global as any).OfficeRuntime.storage.getItem.mockReturnValue('test-api-key');
 
-    // Clear the cache storage before each test
-    (apiClient as any).storage?.clear?.();
+    resetApi();
   });
 
   afterEach(() => {
@@ -26,7 +29,7 @@ describe('ASSETS function', () => {
 
   it('should return asset IDs when API call is successful', async () => {
     const mockResponse = {
-      data: [{id: 'BTC'}, {id: 'ETH'}, {id: 'ADA'}],
+      data: [asset('BTC'), asset('ETH'), asset('ADA')],
     };
 
     mock.onGet('/api/glassnode/v1/metadata/assets').reply(200, mockResponse);
@@ -41,13 +44,13 @@ describe('ASSETS function', () => {
   });
 
   it('should send the API key in the X-Api-Key header, not in the URL', async () => {
-    mock.onGet('/api/glassnode/v1/metadata/assets').reply(200, {data: [{id: 'BTC'}]});
+    mock.onGet('/api/glassnode/v1/metadata/assets').reply(200, {data: [asset('BTC')]});
 
     await ASSETS();
 
     const request = mock.history.get[0];
     expect(request.headers['X-Api-Key']).toBe('test-api-key');
-    expect(apiClient.getUri(request)).not.toContain('test-api-key');
+    expect(request.fullUrl).not.toContain('test-api-key');
   });
 
   it('should return error when API key is not configured', async () => {
@@ -59,7 +62,7 @@ describe('ASSETS function', () => {
     expect(mock.history.get).toHaveLength(0);
   });
 
-  it('should return error when API call fails with axios error', async () => {
+  it('should return error when API call fails with an HTTP error', async () => {
     mock.onGet('/api/glassnode/v1/metadata/assets').reply(401);
 
     const result = await ASSETS();
@@ -69,7 +72,7 @@ describe('ASSETS function', () => {
 
   it('should apply limit parameter correctly', async () => {
     const mockResponse = {
-      data: [{id: 'BTC'}, {id: 'ETH'}, {id: 'ADA'}, {id: 'DOT'}, {id: 'LINK'}],
+      data: [asset('BTC'), asset('ETH'), asset('ADA'), asset('DOT'), asset('LINK')],
     };
 
     mock.onGet('/api/glassnode/v1/metadata/assets').reply(200, mockResponse);
@@ -80,9 +83,9 @@ describe('ASSETS function', () => {
     expect(result).toHaveLength(3);
   });
 
-  it('should filter out undefined/null IDs', async () => {
+  it('should filter out empty IDs', async () => {
     const mockResponse = {
-      data: [{id: 'BTC'}, {id: null}, {id: 'ETH'}, {id: undefined}, {id: 'ADA'}, {id: ''}],
+      data: [asset('BTC'), asset(''), asset('ETH'), asset(''), asset('ADA')],
     };
 
     mock.onGet('/api/glassnode/v1/metadata/assets').reply(200, mockResponse);
@@ -93,9 +96,23 @@ describe('ASSETS function', () => {
     expect(result).toHaveLength(3);
   });
 
+  it('should report an asset list that does not match the API shape as an invalid response', async () => {
+    mock.onGet('/api/glassnode/v1/metadata/assets').reply(200, {data: [asset('BTC'), {id: null}]});
+
+    expect(await ASSETS()).toEqual([['Error: Invalid response format']]);
+  });
+
+  it('should not cache a failed request', async () => {
+    mock.onGet('/api/glassnode/v1/metadata/assets').replyOnce(async () => [401]);
+    mock.onGet('/api/glassnode/v1/metadata/assets').reply(200, {data: [asset('BTC')]});
+
+    expect(await ASSETS()).toEqual([['Error: HTTP error! status: 401']]);
+    expect(await ASSETS()).toEqual([['BTC']]);
+  });
+
   it('should cache requests and return same results for identical requests', async () => {
     const mockResponse = {
-      data: [{id: 'BTC'}],
+      data: [asset('BTC')],
     };
 
     mock.onGet('/api/glassnode/v1/metadata/assets').reply(200, mockResponse);
@@ -119,7 +136,8 @@ describe('ASSETS function', () => {
       const result = await ASSETS();
 
       expect(result).toEqual([['Error: 429 rate limit exceeded - too many requests to the Glassnode API']]);
-      expect(mock.history.get).toHaveLength(1);
+      // The client retries a 429 twice
+      expect(mock.history.get).toHaveLength(3);
     });
 
     it('should handle network errors', async () => {
@@ -132,7 +150,7 @@ describe('ASSETS function', () => {
 
     it('should use same cache for different limits and return consistent results', async () => {
       const mockResponse = {
-        data: [{id: 'BTC'}, {id: 'ETH'}, {id: 'ADA'}, {id: 'DOT'}, {id: 'LINK'}],
+        data: [asset('BTC'), asset('ETH'), asset('ADA'), asset('DOT'), asset('LINK')],
       };
 
       mock.onGet('/api/glassnode/v1/metadata/assets').reply(200, mockResponse);
@@ -155,7 +173,7 @@ describe('ASSETS function', () => {
 
   it('does not serve assets cached under a different API key', async () => {
     const getItem = (global as any).OfficeRuntime.storage.getItem as jest.Mock;
-    mock.onGet('/api/glassnode/v1/metadata/assets').reply(200, {data: [{id: 'BTC'}]});
+    mock.onGet('/api/glassnode/v1/metadata/assets').reply(200, {data: [asset('BTC')]});
 
     getItem.mockReturnValue('first-key');
     await ASSETS();
@@ -193,7 +211,7 @@ describe('ASSETS function', () => {
   });
 
   it('accepts a limit of 0', async () => {
-    mock.onGet('/api/glassnode/v1/metadata/assets').reply(200, {data: [{id: 'BTC'}]});
+    mock.onGet('/api/glassnode/v1/metadata/assets').reply(200, {data: [asset('BTC')]});
 
     expect(await ASSETS(0)).toEqual([]);
   });
