@@ -4,7 +4,7 @@ All notable changes to the Glassnode Excel add-in. The version is the one the ta
 shows (`src/version.ts`). Each release is tagged `v<version>` on `main`, and the CDN
 serves the build of that tag. Security fixes are listed under **Security**.
 
-## 0.2.0 (not yet released: set the date when tagging)
+## 0.2.0 (unreleased: set the date in the release PR just before it merges)
 
 ### Security
 
