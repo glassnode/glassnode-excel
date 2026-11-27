@@ -13,7 +13,8 @@ serves the build of that tag. Security fixes are listed under **Security**.
 - Responses are cached in memory for 3 minutes (metrics) and 1 hour (assets); a failed
   request is never cached. The asset list is checked against the API's full asset shape, so
   a malformed list shows "Error: Invalid response format".
-- A parameter such as `f=xml` now shows an input error instead of being sent.
+- `f=` other than `json` (e.g. `f=csv`) shows an input error instead of being sent. The add-in
+  only reads JSON, so a CSV response already showed "No data available".
 
 ### Security
 
