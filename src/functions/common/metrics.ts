@@ -4,10 +4,24 @@ import axios from 'axios';
 import {apiClient, cachePrefixFor} from './api';
 import {API_KEY_MISSING_ERROR, API_KEY_STORAGE_ERROR, apiKeyHeaders, buildCacheId, buildHeaders, describeError, getApiKey, getApiUrl} from './utils';
 
-// Parameters a formula may not set: the key only ever travels in the X-Api-Key header
-const RESERVED_PARAMS = new Set(['api_key']);
-const METRIC_SEGMENT = /^[A-Za-z0-9_-]+$/;
 import {dateToUnixSeconds, unixSecondsToYyyyMmDd} from './dateUtils';
+
+// Parameters a formula may not set: the key only ever travels in the X-Api-Key header, and
+// a, s, u and source come from METRIC's own arguments. i (resolution) stays settable.
+const RESERVED_PARAMS = new Set(['api_key', 'a', 's', 'u', 'source', 'metric']);
+const METRIC_SEGMENT = /^[A-Za-z0-9_-]+$/;
+
+/** An API value as a cell value: numbers, strings and booleans as they are, anything else as text. */
+function toCell(value: unknown): unknown {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean') return value;
+  return JSON.stringify(value);
+}
+
+/** A key of the object itself, never an inherited one such as constructor or __proto__. */
+function ownValue(o: Record<string, unknown> | undefined, key: string): unknown {
+  return o && Object.prototype.hasOwnProperty.call(o, key) ? o[key] : undefined;
+}
 
 export async function METRIC(
   asset: string,
@@ -47,7 +61,7 @@ export async function METRIC(
 
     // Convert provided Date objects to unix timestamps (seconds)
     const startTimestamp = dateToUnixSeconds(startDate);
-    const endTimestamp = endDate ? dateToUnixSeconds(endDate) : null;
+    const endTimestamp = endDate != null ? dateToUnixSeconds(endDate) : null;
 
     // Build URL parameters
     const params = {
@@ -56,7 +70,7 @@ export async function METRIC(
       s: startTimestamp.toString(),
     };
 
-    if (endTimestamp) {
+    if (endTimestamp !== null) {
       params['u'] = endTimestamp.toString();
     }
 
@@ -65,14 +79,22 @@ export async function METRIC(
 
     for (const param of optionalParams) {
       if (param && typeof param === 'string') {
-        const [key, value] = param.split('=');
-        if (key && RESERVED_PARAMS.has(key.trim().toLowerCase())) {
+        // Split on the first "=" only, so a value may itself contain "="
+        const eq = param.indexOf('=');
+        const key = eq === -1 ? param.trim() : param.slice(0, eq).trim();
+        const value = eq === -1 ? '' : param.slice(eq + 1).trim();
+        const reserved = key.toLowerCase();
+        if (reserved === 'api_key') {
           return [['Error: api_key cannot be passed as a parameter; set your API key in the task pane']];
         }
+        if (RESERVED_PARAMS.has(reserved)) {
+          return [[`Error: ${key} cannot be passed as a parameter; use METRIC's own arguments`]];
+        }
         if (key && value) {
-          params[key.trim()] = value.trim();
+          params[key] = value;
         } else {
-          console.warn('Invalid parameter format, expected key=value:', param);
+          // Log only the key: the value may be something the user didn't mean to share
+          console.warn('Invalid parameter format, expected key=value:', key || '(empty)');
         }
       }
     }
@@ -119,13 +141,12 @@ export async function METRIC(
     if (responseType === 'value') {
       const valueData = rows as ValueResponseItem[];
       if (valueData.length === 1) {
-        const value = valueData[0].v;
-        return [[value]] as unknown as string[][];
+        return [[toCell(valueData[0].v)]] as unknown as string[][];
       }
       // Return table format with headers
       const headers = ['Date', metric];
 
-      const dataRows = valueData.map(item => [unixSecondsToYyyyMmDd(item.t), item.v]);
+      const dataRows = valueData.map(item => [unixSecondsToYyyyMmDd(item.t), toCell(item.v)]);
 
       return [headers, ...dataRows] as unknown as string[][];
     }
@@ -137,19 +158,18 @@ export async function METRIC(
         if (!multi) {
           // Single data point: return just the picked value
           const only = objectData[0];
-          const val = only.o?.[pick];
-          return [[val]] as unknown as string[][];
+          return [[toCell(ownValue(only.o, pick))]] as unknown as string[][];
         }
 
         // Multiple data points: return Date + picked column
         const headers = ['Date', `${metric}.${pick}`];
-        const dataRows = objectData.map(item => [unixSecondsToYyyyMmDd(item.t), item.o?.[pick]]);
+        const dataRows = objectData.map(item => [unixSecondsToYyyyMmDd(item.t), toCell(ownValue(item.o, pick))]);
         return [headers, ...dataRows] as unknown as string[][];
       }
 
       // Return table format with headers
       const {headers, keys} = buildHeaders(objectData, metric);
-      const dataRows = objectData.map(item => [unixSecondsToYyyyMmDd(item.t), ...keys.map(k => item.o?.[k] ?? '')]);
+      const dataRows = objectData.map(item => [unixSecondsToYyyyMmDd(item.t), ...keys.map(k => toCell(ownValue(item.o, k)))]);
       return [headers, ...dataRows] as unknown as string[][];
     }
   } catch (error) {

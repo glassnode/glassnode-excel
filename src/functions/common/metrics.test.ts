@@ -670,4 +670,73 @@ describe('METRIC function', () => {
       errorSpy.mockRestore();
     });
   });
+
+  describe('hardening', () => {
+    const url = '/api/glassnode/v1/metrics/addresses/active_count';
+
+    it.each(['a=ETH', 's=0', 'u=0', 'source=other', 'metric=x', 'A=ETH'])('rejects the reserved parameter %s', async param => {
+      const result = await METRIC('BTC', '/addresses/active_count', '44562', null, param);
+
+      expect(result[0][0]).toContain('cannot be passed as a parameter');
+      expect(mock.history.get).toHaveLength(0);
+    });
+
+    it('still lets a formula set the resolution with i', async () => {
+      mock.onGet(url).reply(200, [{t: 1640995200, v: 1}]);
+
+      await METRIC('BTC', '/addresses/active_count', '44562', null, 'i=1h');
+
+      expect(mock.history.get[0].params.i).toBe('1h');
+    });
+
+    it('keeps an "=" inside a parameter value', async () => {
+      mock.onGet(url).reply(200, [{t: 1640995200, v: 1}]);
+
+      await METRIC('BTC', '/addresses/active_count', '44562', null, 'e=a=b');
+
+      expect(mock.history.get[0].params.e).toBe('a=b');
+    });
+
+    it('returns an empty cell for an inherited pick such as constructor', async () => {
+      mock.onGet(url).reply(200, [{t: 1640995200, o: {x: 1}}]);
+
+      for (const pick of ['constructor', '__proto__', 'toString']) {
+        const result = await METRIC('BTC', '/addresses/active_count', '44562', null, null, null, null, null, pick);
+        expect(result).toEqual([['']]);
+      }
+    });
+
+    it('turns object and null values into cell-safe values', async () => {
+      mock.onGet(url).reply(200, [
+        {t: 1640995200, v: {nested: true}},
+        {t: 1641081600, v: null},
+      ]);
+
+      const result = await METRIC('BTC', '/addresses/active_count', '44562', '44564');
+
+      expect(result).toEqual([
+        ['Date', '/addresses/active_count'],
+        ['2022-01-01', '{"nested":true}'],
+        ['2022-01-02', ''],
+      ]);
+    });
+
+    it('rejects a date that does not exist instead of reading it as a serial number', async () => {
+      const result = await METRIC('BTC', '/addresses/active_count', '2024-13-01');
+
+      expect(result[0][0]).toContain('Invalid date format');
+      expect(mock.history.get).toHaveLength(0);
+    });
+
+    it('does not log parameter values', async () => {
+      const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      mock.onGet(url).reply(200, [{t: 1640995200, v: 1}]);
+
+      await METRIC('BTC', '/addresses/active_count', '44562', null, 'e=secret-value');
+
+      expect(JSON.stringify(logSpy.mock.calls)).not.toContain('secret-value');
+      expect(JSON.stringify(logSpy.mock.calls)).toContain('"e"');
+      logSpy.mockRestore();
+    });
+  });
 });
