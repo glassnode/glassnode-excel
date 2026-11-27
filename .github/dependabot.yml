@@ -1,0 +1,19 @@
+# Weekly npm version updates, holding back versions younger than 7 days. Security updates
+# are separate and not delayed by the cooldown. Runtime dependencies (they ship in the
+# add-in bundle) and development tooling get separate PRs, so a runtime change is easy to
+# spot and deploy. Major updates get their own PR.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      runtime:
+        dependency-type: production
+        update-types: [minor, patch]
+      development:
+        dependency-type: development
+        update-types: [minor, patch]
