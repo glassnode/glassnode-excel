@@ -159,13 +159,16 @@ module.exports = async (env, options) => {
           pathRewrite: {
             '^/api/glassnode': ''
           },
-          logLevel: 'debug',
-          onProxyReq: function(proxyReq, req, res) {
-            console.log('Proxying request to:', proxyReq.protocol + '//' + proxyReq.host + proxyReq.path);
+          // http-proxy-middleware 3+ option names (webpack-dev-server 6 uses version 4)
+          logger: console,
+          on: {
+            proxyReq: function(proxyReq) {
+              console.log('Proxying request to:', proxyReq.protocol + '//' + proxyReq.host + proxyReq.path);
+            },
+            error: function(err) {
+              console.log('Proxy error:', err.message);
+            },
           },
-          onError: function(err, req, res) {
-            console.log('Proxy error:', err);
-          }
         }
       ]
     },

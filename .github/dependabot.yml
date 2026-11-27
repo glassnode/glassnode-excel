@@ -15,6 +15,11 @@ updates:
     commit-message:
       prefix: chore(deps)
       prefix-development: chore(deps-dev)
+    ignore:
+      # TypeScript 7 (the native compiler) has no JavaScript API yet: typescript-eslint
+      # supports up to 6.0 and eslint-plugin-office-addins needs 5.x. Revisit when they do.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
     groups:
       babel:
         patterns: ['@babel/*', 'babel-loader']
