@@ -5,11 +5,47 @@ const CopyWebpackPlugin = require("copy-webpack-plugin");
 const CustomFunctionsMetadataPlugin = require("custom-functions-metadata-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const path = require("path");
+const fs = require("fs");
+const { execSync } = require("child_process");
+const webpack = require("webpack");
 
 const urlDev = "https://localhost:3000/";
 const urlProd = "https://cdn-msoffice.glassnode.com/msexcel/";
 
 /* global require, module, process, __dirname */
+
+// Writes version.json next to the build: the add-in version, the commit it was built from and
+// whether the working tree had uncommitted changes. Served with the add-in, it records what
+// the CDN runs (DEVELOPMENT.md -> Releasing).
+class VersionFilePlugin {
+  apply(compiler) {
+    compiler.hooks.thisCompilation.tap("VersionFilePlugin", (compilation) => {
+      compilation.hooks.processAssets.tap(
+        { name: "VersionFilePlugin", stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONAL },
+        () => {
+          const versionSource = fs.readFileSync(path.join(__dirname, "src/version.ts"), "utf8");
+          const version = (versionSource.match(/ADDIN_VERSION = '([^']+)'/) || [])[1] || "unknown";
+          const git = (cmd) => {
+            try {
+              return execSync(cmd, { cwd: __dirname, stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+            } catch (e) {
+              return null;
+            }
+          };
+          const commit = git("git rev-parse HEAD");
+          const status = git("git status --porcelain");
+          const info = {
+            version,
+            commit: commit || "unknown",
+            tag: git("git describe --tags --exact-match HEAD") || null,
+            dirty: status === null ? null : status.length > 0,
+          };
+          compilation.emitAsset("version.json", new webpack.sources.RawSource(JSON.stringify(info, null, 2) + "\n"));
+        }
+      );
+    });
+  }
+}
 
 async function getHttpsOptions() {
   const httpsOptions = await devCerts.getHttpsServerOptions();
@@ -56,6 +92,7 @@ module.exports = async (env, options) => {
       ],
     },
     plugins: [
+      new VersionFilePlugin(),
       new CustomFunctionsMetadataPlugin({
         output: "functions.json",
         input: "./src/functions/functions.ts",

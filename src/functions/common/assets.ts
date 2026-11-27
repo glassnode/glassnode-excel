@@ -1,24 +1,33 @@
 /* global console */
 
 import axios from 'axios';
-import {getApiKey, getApiUrl} from './utils';
-import {apiClient} from './api';
+import {API_KEY_MISSING_ERROR, API_KEY_STORAGE_ERROR, apiKeyHeaders, describeError, getApiKey, getApiUrl} from './utils';
+import {apiClient, cachePrefixFor} from './api';
 // Create cached axios instance with localStorage
 
 export async function ASSETS(limit: number = null): Promise<string[][]> {
+  if (limit !== null && limit !== undefined && !(Number.isInteger(limit) && limit >= 0)) {
+    return [['Error: limit must be a whole number of 0 or more']];
+  }
   try {
     // Get API key from settings
-    const apiKey = await getApiKey();
+    let apiKey: string | null;
+    try {
+      apiKey = await getApiKey();
+    } catch (error) {
+      console.error('Error reading API key from storage:', describeError(error));
+      return [[API_KEY_STORAGE_ERROR]];
+    }
     if (!apiKey) {
-      return [['Error: API key not configured. Please set your API key in the task pane.']];
+      return [[API_KEY_MISSING_ERROR]];
     }
 
-    const cacheId = `assets_cache`;
+    const cacheId = (await cachePrefixFor(apiKey)) + 'assets_cache';
     const response = await apiClient.get(`${getApiUrl()}/v1/metadata/assets`, {
       params: {
-        api_key: apiKey,
         source: 'excel-add-in',
       },
+      headers: apiKeyHeaders(apiKey),
       cache: {
         ttl: 60 * 60 * 1000, // 1 hour
       },
@@ -38,7 +47,7 @@ export async function ASSETS(limit: number = null): Promise<string[][]> {
     // Return as 2D array for Excel (each ID in its own row)
     return assetIds.map(id => [id]);
   } catch (error) {
-    console.error('Error fetching asset data:', error);
+    console.error('Error fetching asset data:', describeError(error));
 
     // Handle axios-specific errors
     if (axios.isAxiosError(error)) {
