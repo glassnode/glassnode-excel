@@ -41,10 +41,20 @@ describe('METRIC function', () => {
     expect(mock.history.get).toHaveLength(1);
     expect(mock.history.get[0].params).toEqual(
       expect.objectContaining({
-        api_key: 'test-api-key',
         a: 'BTC',
       }),
     );
+  });
+
+  it('should send the API key in the X-Api-Key header, not in the URL', async () => {
+    mock.onGet('/api/glassnode/v1/metrics/addresses/active_count').reply(200, [{t: 1640995200, v: 1}]);
+
+    await METRIC('BTC', '/addresses/active_count', '44562');
+
+    const request = mock.history.get[0];
+    expect(request.headers['X-Api-Key']).toBe('test-api-key');
+    expect(request.params).not.toHaveProperty('api_key');
+    expect(apiClient.getUri(request)).not.toContain('test-api-key');
   });
 
   it('should return table format for date range', async () => {
@@ -131,7 +141,6 @@ describe('METRIC function', () => {
     expect(mock.history.get).toHaveLength(1);
     expect(mock.history.get[0].params).toEqual(
       expect.objectContaining({
-        api_key: 'test-api-key',
         a: 'BTC',
         i: '24h',
         s: '1640995200',
@@ -171,7 +180,6 @@ describe('METRIC function', () => {
     expect(mock.history.get).toHaveLength(1);
     expect(mock.history.get[0].params).toEqual(
       expect.objectContaining({
-        api_key: 'test-api-key',
         a: 'BTC',
         i: '24h',
         s: '1704067200',
@@ -193,7 +201,6 @@ describe('METRIC function', () => {
     expect(mock.history.get).toHaveLength(1);
     expect(mock.history.get[0].params).toEqual(
       expect.objectContaining({
-        api_key: 'test-api-key',
         a: 'BTC',
         i: '24h',
         s: '1704067200',
@@ -217,7 +224,6 @@ describe('METRIC function', () => {
     expect(mock.history.get).toHaveLength(1);
     expect(mock.history.get[0].params).toEqual(
       expect.objectContaining({
-        api_key: 'test-api-key',
         a: 'BTC',
         i: '24h',
         s: '1704067200',
@@ -248,7 +254,6 @@ describe('METRIC function', () => {
     expect(mock.history.get).toHaveLength(1);
     expect(mock.history.get[0].params).toEqual(
       expect.objectContaining({
-        api_key: 'test-api-key',
         a: 'BTC',
         i: '24h',
         s: '1704067200',
@@ -277,7 +282,6 @@ describe('METRIC function', () => {
     expect(mock.history.get).toHaveLength(1);
     expect(mock.history.get[0].params).toEqual(
       expect.objectContaining({
-        api_key: 'test-api-key',
         a: 'BTC',
         i: '24h',
         s: '1704067200',
@@ -297,7 +301,6 @@ describe('METRIC function', () => {
     expect(mock.history.get).toHaveLength(1);
     expect(mock.history.get[0].params).toEqual(
       expect.objectContaining({
-        api_key: 'test-api-key',
         a: 'BTC',
         i: '24h',
         s: '1704067200',
@@ -320,7 +323,6 @@ describe('METRIC function', () => {
     expect(mock.history.get).toHaveLength(1);
     expect(mock.history.get[0].params).toEqual(
       expect.objectContaining({
-        api_key: 'test-api-key',
         a: 'BTC',
         i: '24h',
         s: '1704067200',
@@ -346,7 +348,6 @@ describe('METRIC function', () => {
     expect(mock.history.get).toHaveLength(1);
     expect(mock.history.get[0].params).toEqual(
       expect.objectContaining({
-        api_key: 'test-api-key',
         a: 'BTC',
         i: '24h',
         s: '1704067200',
@@ -370,7 +371,6 @@ describe('METRIC function', () => {
     expect(mock.history.get).toHaveLength(1);
     expect(mock.history.get[0].params).toEqual(
       expect.objectContaining({
-        api_key: 'test-api-key',
         a: 'BTC',
         i: '24h',
         s: '1704067200',
@@ -394,7 +394,6 @@ describe('METRIC function', () => {
     expect(mock.history.get).toHaveLength(1);
     expect(mock.history.get[0].params).toEqual(
       expect.objectContaining({
-        api_key: 'test-api-key',
         a: 'BTC',
         i: '24h',
         s: '1704067200',
@@ -441,7 +440,10 @@ describe('METRIC function', () => {
       mock.onGet('/api/glassnode/v1/metrics/addresses/active_count').reply(200, mockResponse);
       await METRIC('BTC', '/addresses/active_count', '44562');
       expect(buildCacheIdSpy).toHaveBeenCalled();
-      expect(buildCacheIdSpy).toHaveBeenCalledWith({ a: 'BTC', i: '24h', s: '1640995200' }, '/addresses/active_count');
+      expect(buildCacheIdSpy).toHaveBeenCalledWith(
+        {a: 'BTC', i: '24h', s: '1640995200'},
+        '/addresses/active_count',
+      );
     });
   });
 
@@ -572,6 +574,100 @@ describe('METRIC function', () => {
         expect(result).toEqual([[0.1]]);
         expect(mock.history.get).toHaveLength(1);
       });
+    });
+  });
+
+  describe('API key safety', () => {
+    const url = '/api/glassnode/v1/metrics/addresses/active_count';
+    const getItem = () => (global as any).OfficeRuntime.storage.getItem as jest.Mock;
+
+    it('rejects api_key passed as a formula parameter without sending a request', async () => {
+      const result = await METRIC('BTC', '/addresses/active_count', '44562', null, 'API_KEY=other-key');
+
+      expect(result[0][0]).toContain('api_key cannot be passed as a parameter');
+      expect(mock.history.get).toHaveLength(0);
+    });
+
+    it('rejects a metric path with a query string without sending a request', async () => {
+      const result = await METRIC('BTC', '/addresses/active_count?api_key=other-key', '44562');
+
+      expect(result[0][0]).toContain('cannot contain "?"');
+      expect(mock.history.get).toHaveLength(0);
+    });
+
+    it.each([
+      '/../v1/user/info',
+      '/market/../../v2/user',
+      '/./market/price_usd_close',
+      '/market/%2e%2e/x',
+      '/market\\..\\x',
+      '/market//price_usd_close',
+      '/market/',
+    ])('rejects the metric path %s without sending a request', async path => {
+      const result = await METRIC('BTC', path, '44562');
+
+      expect(result[0][0]).toContain('Invalid path');
+      expect(mock.history.get).toHaveLength(0);
+    });
+
+    it('does not serve a response cached under a different API key', async () => {
+      mock.onGet(url).reply(200, [{t: 1640995200, v: 1}]);
+
+      getItem().mockReturnValue('first-key');
+      await METRIC('BTC', '/addresses/active_count', '44562');
+      getItem().mockReturnValue('second-key');
+      await METRIC('BTC', '/addresses/active_count', '44562');
+
+      expect(mock.history.get).toHaveLength(2);
+      expect(mock.history.get[1].headers['X-Api-Key']).toBe('second-key');
+    });
+
+    it('caches a formula parameter named key like any other parameter', async () => {
+      mock.onGet(url).reply(200, [{t: 1640995200, v: 1}]);
+
+      await METRIC('BTC', '/addresses/active_count', '44562', null, 'key=one');
+      await METRIC('BTC', '/addresses/active_count', '44562', null, 'key=two');
+
+      expect(mock.history.get).toHaveLength(2);
+      expect(mock.history.get[1].params.key).toBe('two');
+    });
+
+    it('does not serve a response that was still in flight when the key changed', async () => {
+      let release: () => void = () => undefined;
+      mock.onGet(url).replyOnce(() => new Promise(resolve => (release = () => resolve([200, [{t: 1, v: 'old'}]]))));
+      mock.onGet(url).reply(200, [{t: 1, v: 'new'}]);
+
+      getItem().mockReturnValue('first-key');
+      const inFlight = METRIC('BTC', '/addresses/active_count', '44562');
+      await new Promise(resolve => setTimeout(resolve, 0));
+      getItem().mockReturnValue('second-key');
+      const fresh = await METRIC('BTC', '/addresses/active_count', '44562');
+      release();
+      await inFlight;
+      const again = await METRIC('BTC', '/addresses/active_count', '44562');
+
+      expect(fresh).toEqual([['new']]);
+      expect(again).toEqual([['new']]);
+    });
+
+    it('reports a storage failure instead of "not configured"', async () => {
+      getItem().mockRejectedValue(new Error('storage unavailable'));
+
+      const result = await METRIC('BTC', '/addresses/active_count', '44562');
+
+      expect(result[0][0]).toBe(utilsModule.API_KEY_STORAGE_ERROR);
+      expect(mock.history.get).toHaveLength(0);
+    });
+
+    it('does not log the API key when a request fails', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      mock.onGet(url).reply(500);
+
+      await METRIC('BTC', '/addresses/active_count', '44562');
+
+      expect(errorSpy).toHaveBeenCalled();
+      expect(JSON.stringify(errorSpy.mock.calls)).not.toContain('test-api-key');
+      errorSpy.mockRestore();
     });
   });
 });

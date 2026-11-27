@@ -1,6 +1,7 @@
 import {ASSETS} from './assets';
 import {apiClient} from './api';
 import MockAdapter from 'axios-mock-adapter';
+import {API_KEY_STORAGE_ERROR} from './utils';
 
 describe('ASSETS function', () => {
   // @ts-ignore
@@ -36,9 +37,18 @@ describe('ASSETS function', () => {
     expect(result).toEqual([['BTC'], ['ETH']]);
     expect(mock.history.get).toHaveLength(1);
     expect(mock.history.get[0].params).toEqual({
-      api_key: 'test-api-key',
       source: 'excel-add-in',
     });
+  });
+
+  it('should send the API key in the X-Api-Key header, not in the URL', async () => {
+    mock.onGet('/api/glassnode/v1/metadata/assets').reply(200, {data: [{id: 'BTC'}]});
+
+    await ASSETS();
+
+    const request = mock.history.get[0];
+    expect(request.headers['X-Api-Key']).toBe('test-api-key');
+    expect(apiClient.getUri(request)).not.toContain('test-api-key');
   });
 
   it('should return error when API key is not configured', async () => {
@@ -142,5 +152,37 @@ describe('ASSETS function', () => {
       expect(result2.slice(0, 2)).toEqual(result1);
       expect(result3.slice(0, 3)).toEqual(result2);
     });
+  });
+
+  it('does not serve assets cached under a different API key', async () => {
+    const getItem = (global as any).OfficeRuntime.storage.getItem as jest.Mock;
+    mock.onGet('/api/glassnode/v1/metadata/assets').reply(200, {data: [{id: 'BTC'}]});
+
+    getItem.mockReturnValue('first-key');
+    await ASSETS();
+    getItem.mockReturnValue('second-key');
+    await ASSETS();
+
+    expect(mock.history.get).toHaveLength(2);
+  });
+
+  it('reports a storage failure instead of "not configured"', async () => {
+    (global as any).OfficeRuntime.storage.getItem.mockRejectedValue(new Error('storage unavailable'));
+
+    const result = await ASSETS();
+
+    expect(result[0][0]).toBe(API_KEY_STORAGE_ERROR);
+    expect(mock.history.get).toHaveLength(0);
+  });
+
+  it('does not log the API key when a request fails', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    mock.onGet('/api/glassnode/v1/metadata/assets').networkError();
+
+    await ASSETS();
+
+    expect(errorSpy).toHaveBeenCalled();
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain('test-api-key');
+    errorSpy.mockRestore();
   });
 });

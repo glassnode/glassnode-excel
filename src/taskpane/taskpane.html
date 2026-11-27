@@ -35,12 +35,15 @@
                 
                 <div class="ms-TextField" style="margin-top: 15px;">
                     <label class="ms-Label">API Key:</label>
-                    <input type="text" id="api-key-input" placeholder="Enter your Glassnode API key" class="ms-TextField-field" />
+                    <input type="password" id="api-key-input" placeholder="Enter your Glassnode API key" class="ms-TextField-field" autocomplete="off" spellcheck="false" />
                 </div>
-                
+
                 <div class="ms-welcome__action" style="margin-top: 15px;">
                     <button id="save-api-key" class="ms-Button ms-Button--primary">
                         <span class="ms-Button-label">Save API Key</span>
+                    </button>
+                    <button id="remove-api-key" class="ms-Button" style="margin-left: 8px;" disabled>
+                        <span class="ms-Button-label">Remove API Key</span>
                     </button>
                 </div>
                 

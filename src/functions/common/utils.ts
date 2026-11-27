@@ -1,17 +1,35 @@
-/* global console, OfficeRuntime */
+/* global OfficeRuntime */
+
+export const API_KEY_MISSING_ERROR = 'Error: API key not configured. Please set your API key in the task pane.';
+export const API_KEY_STORAGE_ERROR = 'Error: could not read the API key from storage. Please try again.';
 
 /**
- * Helper function to get the API key from OfficeRuntime.storage
- * @returns The stored API key or null if not found
+ * Get the API key from OfficeRuntime.storage.
+ * @returns The stored API key, or null if none is saved.
+ * @throws If storage can't be read, so callers can tell a failure from "no key saved".
  */
 export async function getApiKey(): Promise<string | null> {
-  try {
-    // Use OfficeRuntime.storage (works across all contexts)
-    return await OfficeRuntime.storage.getItem('glassnodeApiKey');
-  } catch (error) {
-    console.error('Error getting API key:', error);
-    return null;
+  return await OfficeRuntime.storage.getItem('glassnodeApiKey');
+}
+
+/**
+ * A loggable summary of an error. Never log a whole axios error: its request config
+ * carries the X-Api-Key header.
+ */
+export function describeError(error: unknown): Record<string, unknown> {
+  if (error && typeof error === 'object' && (error as {isAxiosError?: boolean}).isAxiosError) {
+    const axiosError = error as {code?: string; message?: string; response?: {status?: number}};
+    return {code: axiosError.code, status: axiosError.response?.status, message: axiosError.message};
   }
+  return {message: error instanceof Error ? error.message : String(error)};
+}
+
+/**
+ * Request headers that authenticate with the Glassnode API.
+ * The key goes in a header rather than the query string, so it stays out of URLs.
+ */
+export function apiKeyHeaders(apiKey: string): Record<string, string> {
+  return {'X-Api-Key': apiKey};
 }
 
 export function isDevEnv() {
