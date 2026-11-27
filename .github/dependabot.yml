@@ -1,7 +1,9 @@
-# Weekly npm version updates, holding back versions younger than 7 days. Security updates
-# are separate and not delayed by the cooldown. Runtime dependencies (they ship in the
-# add-in bundle) and development tooling get separate PRs, so a runtime change is easy to
-# spot and deploy. Major updates get their own PR.
+# Weekly version updates, holding back versions younger than 7 days. Security updates are
+# separate and not delayed by the cooldown. Runtime dependencies (they ship in the add-in
+# bundle) and development tooling get separate PRs, so a runtime change is easy to spot and
+# deploy. Major updates get their own PR, except Babel's: its packages must move together
+# (a Babel 8 preset needs @babel/core 8), so all of them, majors included, come as one PR.
+# Groups are matched in order, so babel comes first.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -11,9 +13,21 @@ updates:
     cooldown:
       default-days: 7
     groups:
+      babel:
+        patterns: ['@babel/*', 'babel-loader']
       runtime:
         dependency-type: production
         update-types: [minor, patch]
       development:
         dependency-type: development
         update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ['*']
