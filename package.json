@@ -5,7 +5,7 @@
     "type": "git",
     "url": "https://github.com/glassnode/glassnode-excel.git"
   },
-  "license": "MIT",
+  "license": "Apache-2.0",
   "scripts": {
     "build": "webpack --mode production",
     "build:dev": "webpack --mode development",

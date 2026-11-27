@@ -1,6 +1,7 @@
 # `glassnode-excel`
 
 [![CI](https://github.com/glassnode/glassnode-excel/actions/workflows/ci.yml/badge.svg)](https://github.com/glassnode/glassnode-excel/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 The Glassnode add-in for Microsoft Excel: `GN.ASSETS` and `GN.METRIC` formulas that pull
 Glassnode's digital asset data into a spreadsheet, for Glassnode API customers.
@@ -103,3 +104,8 @@ version are in [CHANGELOG.md](CHANGELOG.md).
 Glassnode API customers: contact Glassnode support. To report a vulnerability, see
 [SECURITY.md](SECURITY.md).
 
+## License
+
+Apache License 2.0: see [LICENSE](LICENSE) and [NOTICE](NOTICE). Some files come from
+Microsoft's Excel Custom Functions template and keep their MIT notice; NOTICE has the
+details.
