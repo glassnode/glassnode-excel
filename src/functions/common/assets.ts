@@ -1,9 +1,7 @@
 /* global console */
 
-import axios from 'axios';
-import {API_KEY_MISSING_ERROR, API_KEY_STORAGE_ERROR, apiKeyHeaders, describeError, getApiKey, getApiUrl} from './utils';
-import {apiClient, cachePrefixFor} from './api';
-// Create cached axios instance with localStorage
+import {API_KEY_MISSING_ERROR, API_KEY_STORAGE_ERROR, describeError, errorMessage, getApiKey} from './utils';
+import {cached, cachePrefixFor, getClient} from './api';
 
 export async function ASSETS(limit: number = null): Promise<string[][]> {
   if (limit !== null && limit !== undefined && !(Number.isInteger(limit) && limit >= 0)) {
@@ -23,23 +21,10 @@ export async function ASSETS(limit: number = null): Promise<string[][]> {
     }
 
     const cacheId = (await cachePrefixFor(apiKey)) + 'assets_cache';
-    const response = await apiClient.get(`${getApiUrl()}/v1/metadata/assets`, {
-      params: {
-        source: 'excel-add-in',
-      },
-      headers: apiKeyHeaders(apiKey),
-      cache: {
-        ttl: 60 * 60 * 1000, // 1 hour
-      },
-      id: cacheId,
-    });
-
-    if (!response.data.data || !Array.isArray(response.data.data)) {
-      throw new Error('Invalid response format');
-    }
+    const assets = await cached(cacheId, 60 * 60 * 1000 /* 1 hour */, () => getClient(apiKey).getAssetMetadata());
 
     // Extract IDs and limit the results
-    const assetIds = response.data.data
+    const assetIds = assets
       .slice(0, limit ?? 50_000)
       .map(asset => asset.id)
       .filter(id => id); // Filter out any undefined/null/"" IDs
@@ -49,15 +34,6 @@ export async function ASSETS(limit: number = null): Promise<string[][]> {
   } catch (error) {
     console.error('Error fetching asset data:', describeError(error));
 
-    // Handle axios-specific errors
-    if (axios.isAxiosError(error)) {
-      if (error.response?.status === 429) {
-        return [['Error: 429 rate limit exceeded - too many requests to the Glassnode API']];
-      }
-      return [['Error: HTTP error! status: ' + (error.response?.status || 'unknown')]];
-    }
-
-    // Return error message in Excel-compatible format
-    return [['Error: ' + (error instanceof Error ? error.message : 'Unknown error')]];
+    return [[errorMessage(error, false)]];
   }
 }

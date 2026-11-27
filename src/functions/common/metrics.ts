@@ -1,8 +1,7 @@
 /* global console */
 
-import axios from 'axios';
-import {apiClient, cachePrefixFor} from './api';
-import {API_KEY_MISSING_ERROR, API_KEY_STORAGE_ERROR, apiKeyHeaders, buildCacheId, buildHeaders, describeError, getApiKey, getApiUrl} from './utils';
+import {cached, cachePrefixFor, getClient} from './api';
+import {API_KEY_MISSING_ERROR, API_KEY_STORAGE_ERROR, buildCacheId, buildHeaders, describeError, errorMessage, getApiKey} from './utils';
 
 import {dateToUnixSeconds, unixSecondsToYyyyMmDd} from './dateUtils';
 
@@ -99,27 +98,14 @@ export async function METRIC(
       }
     }
 
-    // Use proxy path for development, direct API for production
-    const apiUrl = `${getApiUrl()}/v1/metrics/${segments.map(encodeURIComponent).join('/')}`;
-
     const cacheId = (await cachePrefixFor(apiKey)) + buildCacheId(params, metric);
     type ObjectResponseItem = {t: number; o: Record<string, unknown>};
     type ValueResponseItem = {t: number; v: unknown};
     type ResponseItem = ObjectResponseItem | ValueResponseItem;
-    const response = await apiClient.get<ResponseItem[]>(apiUrl, {
-      params: {
-        ...params,
-        source: 'excel-add-in',
-      },
-      headers: apiKeyHeaders(apiKey),
-      cache: {
-        ttl: 3 * 60 * 1000, // 3 min
-      },
-      id: cacheId,
-    });
+    const data = await cached(cacheId, 3 * 60 * 1000 /* 3 min */, () => getClient(apiKey).callMetric<ResponseItem[]>('/' + segments.join('/'), params));
 
     // If endDate is not provided and no pick is requested, limit to the first data point
-    const rawRows: ResponseItem[] = Array.isArray(response.data) ? response.data : [];
+    const rawRows: ResponseItem[] = Array.isArray(data) ? data : [];
     const rows: ResponseItem[] = endTimestamp == null ? rawRows.slice(0, 1) : rawRows;
 
     if (rows.length === 0) {
@@ -175,18 +161,6 @@ export async function METRIC(
   } catch (error) {
     console.error('Error in METRIC function:', describeError(error));
 
-    // Handle axios-specific errors
-    if (axios.isAxiosError(error)) {
-      if (error.response?.status === 404) {
-        return [['Error: 404 metric not found - correct metric endpoint selected?']];
-      }
-      if (error.response?.status === 429) {
-        return [['Error: 429 rate limit exceeded - too many requests to the Glassnode API']];
-      }
-      return [['Error: HTTP error! status: ' + (error.response?.status || 'unknown')]];
-    }
-
-    // Return error message in Excel-compatible format
-    return [['Error: ' + (error instanceof Error ? error.message : 'Unknown error')]];
+    return [[errorMessage(error)]];
   }
 }

@@ -1,5 +1,7 @@
 /* global OfficeRuntime */
 
+import {GlassnodeApiError, GlassnodeError, GlassnodeNetworkError, GlassnodeValidationError} from 'glassnode-api';
+
 export const API_KEY_MISSING_ERROR = 'Error: API key not configured. Please set your API key in the task pane.';
 export const API_KEY_STORAGE_ERROR = 'Error: could not read the API key from storage. Please try again.';
 
@@ -13,23 +15,30 @@ export async function getApiKey(): Promise<string | null> {
 }
 
 /**
- * A loggable summary of an error. Never log a whole axios error: its request config
- * carries the X-Api-Key header.
+ * A loggable summary of an error. Never log a whole error object: a client error can carry the
+ * failed request (`cause`), and with it the X-Api-Key header.
  */
 export function describeError(error: unknown): Record<string, unknown> {
-  if (error && typeof error === 'object' && (error as {isAxiosError?: boolean}).isAxiosError) {
-    const axiosError = error as {code?: string; message?: string; response?: {status?: number}};
-    return {code: axiosError.code, status: axiosError.response?.status, message: axiosError.message};
+  if (error instanceof GlassnodeError) {
+    return {name: error.name, status: error instanceof GlassnodeApiError ? error.status : undefined, message: error.message};
   }
   return {message: error instanceof Error ? error.message : String(error)};
 }
 
-/**
- * Request headers that authenticate with the Glassnode API.
- * The key goes in a header rather than the query string, so it stays out of URLs.
- */
-export function apiKeyHeaders(apiKey: string): Record<string, string> {
-  return {'X-Api-Key': apiKey};
+/** The cell text for a failed API call. */
+export function errorMessage(error: unknown, notFoundIsMetric = true): string {
+  if (error instanceof GlassnodeApiError) {
+    if (error.status === 404 && notFoundIsMetric) return 'Error: 404 metric not found - correct metric endpoint selected?';
+    if (error.status === 429) return 'Error: 429 rate limit exceeded - too many requests to the Glassnode API';
+    return 'Error: HTTP error! status: ' + (error.status || 'unknown');
+  }
+  if (error instanceof GlassnodeNetworkError) {
+    return 'Error: HTTP error! status: unknown';
+  }
+  if (error instanceof GlassnodeValidationError) {
+    return 'Error: Invalid response format';
+  }
+  return 'Error: ' + (error instanceof Error ? error.message : 'Unknown error');
 }
 
 export function isDevEnv() {
@@ -44,7 +53,8 @@ export function getApiUrl(): string {
   const isDevelopment = isDevEnv();
 
   if (isDevelopment) {
-    return '/api/glassnode';
+    // The client needs an absolute URL; the dev server proxies this path to the API
+    return `${window.location.origin}/api/glassnode`;
   } else {
     return 'https://api.glassnode.com';
   }

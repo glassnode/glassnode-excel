@@ -4,6 +4,24 @@ All notable changes to the Glassnode Excel add-in. The version is the one the ta
 shows (`src/version.ts`). Each release is tagged `v<version>` on `main`, and the CDN
 serves the build of that tag. Security fixes are listed under **Security**.
 
+## 0.3.0 (unreleased: set the date in the release PR just before it merges)
+
+### Changed
+
+- API calls go through the `glassnode-api` TypeScript client instead of axios. Failed
+  requests (429, 5xx, network errors) are retried twice, and at most 6 requests run at once.
+- Responses are cached in memory for 3 minutes (metrics) and 1 hour (assets); a failed
+  request is never cached. The asset list is checked against the API's full asset shape, so
+  a malformed list shows "Error: Invalid response format".
+- A parameter such as `f=xml` now shows an input error instead of being sent.
+
+### Security
+
+- Runtime dependencies cut from axios, axios-cache-interceptor and their dependencies to the
+  `glassnode-api` client (Glassnode's own, published with npm provenance) and zod. The client
+  masks the key in its errors and doesn't follow redirects, so the key isn't sent to another
+  host.
+
 ## 0.2.0 (2026-11-27)
 
 ### Security
