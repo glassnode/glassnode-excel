@@ -21,11 +21,27 @@ serves the build of that tag. Security fixes are listed under **Security**.
   1.11.1, fixing known vulnerabilities (high severity in axios and its form-data
   dependency).
 
+- Formula calls are logged without parameter values, so a mistyped `api_key=...` never
+  reaches the console.
+- `pick` and object columns read only the object's own keys, never inherited ones such as
+  `constructor`.
+
 ### Changed
 
+- `METRIC` rejects `a`, `s`, `u`, `source` and `metric` as `key=value` parameters, since
+  its own arguments set them. `i` (resolution) can still be set. A parameter value may now
+  contain `=`.
+- Dates that don't exist (such as `2024-13-01`, which used to be read as a 1905 date) and
+  serial numbers outside Excel's range return the invalid-date error. An end date of
+  1970-01-01 is no longer ignored.
+- `ASSETS` returns an error unless `limit` is a whole number of 0 or more.
+- Objects and arrays from the API are written to cells as text, and empty values as empty
+  cells.
 - Cached responses are cleared when the API key changes, so data fetched with one key is
   never shown under another.
 - Build and development dependencies updated.
+- The build writes `version.json` with the version, commit and tag, so the CDN shows which
+  build it serves.
 
 ### Development
 
