@@ -4,7 +4,6 @@ import MockAdapter from 'axios-mock-adapter';
 import {API_KEY_STORAGE_ERROR} from './utils';
 
 describe('ASSETS function', () => {
-  // @ts-ignore
   let mock: MockAdapter;
 
   beforeEach(() => {

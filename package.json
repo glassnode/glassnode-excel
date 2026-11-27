@@ -13,6 +13,7 @@
     "prestart": "npm run build",
     "format": "prettier --write 'src/**/*.{ts,tsx}'",
     "lint": "eslint 'src/**/*.{ts,tsx}' --fix",
+    "lint:check": "eslint 'src/**/*.{ts,tsx}'",
     "signin": "office-addin-dev-settings m365-account login",
     "signout": "office-addin-dev-settings m365-account logout",
     "start": "office-addin-debugging start manifest.xml",
