@@ -1,6 +1,9 @@
-# Glassnode Add-In for Excel
+# `glassnode-excel`
 
-A Microsoft Excel add-in that provides direct access to Glassnode's digital asset data API within Excel spreadsheets.
+[![CI](https://github.com/glassnode/glassnode-excel/actions/workflows/ci.yml/badge.svg)](https://github.com/glassnode/glassnode-excel/actions/workflows/ci.yml)
+
+The Glassnode add-in for Microsoft Excel: `GN.ASSETS` and `GN.METRIC` formulas that pull
+Glassnode's digital asset data into a spreadsheet, for Glassnode API customers.
 
 ## Overview
 
@@ -29,7 +32,7 @@ Returns a list of available cryptocurrency assets from Glassnode.
 =GN.ASSETS(50)        // Returns first 50 assets
 ```
 
-### `GN.METRIC(asset, metric, startDate, endDate?)`
+### `GN.METRIC(asset, metric, startDate, endDate?, parameter1?, …, parameter4?, pick?)`
 Fetches metric data from Glassnode API with flexible return format.
 
 **Parameters:**
@@ -38,6 +41,7 @@ Fetches metric data from Glassnode API with flexible return format.
 - `startDate` (required): Start date as Excel date serial number or YYYY-MM-DD string
 - `endDate` (optional): End date as Excel date serial number or YYYY-MM-DD string (exclusive - data up to but not including this date)
 - `parameter1` to `parameter4` (optional): Additional API parameters in "key=value" string format
+- `pick` (optional): For metrics that return an object, the key to return (e.g. `"median"`)
 
 **Optional Parameters:**
 The function supports up to 4 additional parameters that are passed directly to the Glassnode API. These parameters must be provided in the format `"key=value"` as strings. Common parameters include:
@@ -46,6 +50,10 @@ The function supports up to 4 additional parameters that are passed directly to 
 - `"network=base"` - Specify blockchain network (e.g., base, eth, arb)
 - `"miner=FoundryUSAPool"` - Filter by mining pool
 - And many more depending on the specific metric
+
+`a`, `s`, `u`, `source`, `metric` and `api_key` can't be passed as parameters: the function's
+own arguments set them, and the API key only comes from the task pane. `i` (resolution,
+default `24h`) can be set, e.g. `"i=1h"`.
 
 **Returns:**
 - Single value when only `startDate` is provided
@@ -77,13 +85,21 @@ Using optional parameters:
 1. **API Key Configuration**: 
    - Open the add-in task pane in Excel
    - Enter your Glassnode API key
-   - The key is securely stored in your browser's local storage
+   - The key is stored in the add-in's own storage (`OfficeRuntime.storage`) and sent only in
+     the `X-Api-Key` header. The field masks it, and Remove deletes it.
 
 2. **Function Usage**:
    - Use the functions directly in Excel cells
    - Functions support Excel's native calculation and refresh capabilities
 
-## Development
+## Contributing
 
-For development setup, testing instructions, and contribution guidelines, see [DEVELOPMENT.md](DEVELOPMENT.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for build, test and release steps, and
+[DEVELOPMENT.md](DEVELOPMENT.md) for running the add-in locally in Excel. Changes per
+version are in [CHANGELOG.md](CHANGELOG.md).
+
+## Support
+
+Glassnode API customers: contact Glassnode support. To report a vulnerability, see
+[SECURITY.md](SECURITY.md).
 

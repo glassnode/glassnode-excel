@@ -1,9 +1,9 @@
 {
-  "name": "excel-custom-functions",
+  "name": "glassnode-excel",
   "version": "0.0.1",
   "repository": {
     "type": "git",
-    "url": "https://github.com/OfficeDev/Excel-Custom-Functions.git"
+    "url": "https://github.com/glassnode/glassnode-excel.git"
   },
   "license": "MIT",
   "scripts": {
