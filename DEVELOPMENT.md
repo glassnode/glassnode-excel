@@ -90,7 +90,7 @@ The project includes Jest-based unit testing for custom functions:
 
 ### Test Coverage
 - HTTP request mocking with `jest.fn()`
-- localStorage mocking for API key functionality
+- `OfficeRuntime.storage` mocking for the API key
 - Error handling and edge cases
 - Both `ASSETS` and `METRIC` functions
 
@@ -104,43 +104,14 @@ The following development tasks are available via VS Code or npm:
 - **Build (Production)**: `npm run build` - Build for production  
 - **Dev Server**: `npm run dev-server` - Start the development server
 - **Debug: Excel Desktop**: `npm run start` Start debugging in Excel Desktop
-- **Lint: Check for problems**: `npm run lint` - Check for linting issues
-- **Lint: Fix problems**: `npm run lint:fix` - Auto-fix linting issues
+- **Lint: Check for problems**: `npm run lint:check` - Check for linting issues
+- **Lint: Fix problems**: `npm run lint` - Auto-fix linting issues
 - **Watch**: `npm run watch` - Watch for file changes and rebuild
 - **Stop Debug**: `npm run stop` - Stop debugging session
 
 ## Releasing
 
-To create and publish a new release of the add-in:
-
-0. **Version, changelog and tag** (no tag, no deploy):
-   - In a PR, bump `ADDIN_VERSION` in `src/version.ts` ([semver](https://semver.org/): patch for fixes, minor for new behaviour) and add its entry to [CHANGELOG.md](CHANGELOG.md). List security fixes under **Security**. The task pane shows this version. Leave `<Version>` in `manifest.xml` alone unless the manifest itself changes.
-   - After the PR is merged, tag the merge commit on `main` with the same version and push the tag:
-     ```bash
-     git switch main && git pull
-     git tag -a v0.2.0 -m "v0.2.0" && git push origin v0.2.0
-     ```
-   - Build and deploy only from a clean checkout of that tag (`git switch --detach v0.2.0 && npm ci --ignore-scripts`), never from a working copy. The tag is the record of what the CDN serves.
-
-1. **Build the project:**
-   ```bash
-   npm run build
-   ```
-
-2. **Validate the manifest:**
-   ```bash
-   npx office-addin-manifest validate -p dist/manifest.xml
-   ```
-
-3. **Upload to CDN:**
-   - Upload the `dist` folder to the bucket `cdn-mi-prod-msoffice-6ed0/msexcel`
-   - Note: This CDN has an aggressive cache for 1 hour
-
-4. **Submit to Microsoft Partner Center:**
-   - Navigate to https://partner.microsoft.com/en-us/dashboard/office/
-   - Select "Microsoft 365 and Copilot"
-   - Select the add-in to submit a new release
-   - Upload the manifest file and release
+See [CONTRIBUTING.md → Releasing](CONTRIBUTING.md#releasing).
 
 ## Project Structure
 
